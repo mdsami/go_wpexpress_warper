@@ -1,0 +1,332 @@
+basePath: /
+definitions:
+  customer.Address:
+    properties:
+      city:
+        example: Dhaka
+        type: string
+        x-nullable: true
+      country:
+        example: BD
+        type: string
+        x-nullable: true
+      line1:
+        example: badda link road
+        type: string
+        x-nullable: true
+      line2:
+        example: Ja-128
+        type: string
+        x-nullable: true
+      postcode:
+        example: "1212"
+        type: string
+        x-nullable: true
+      state:
+        example: BD-13
+        type: string
+        x-nullable: true
+    type: object
+  customer.Customer:
+    properties:
+      address:
+        $ref: '#/definitions/customer.Address'
+      customer_id:
+        example: 1471
+        type: integer
+      email:
+        example: customer@example.com
+        type: string
+        x-nullable: true
+      first_name:
+        example: Mariyam
+        type: string
+        x-nullable: true
+      last_name:
+        example: Akther
+        type: string
+        x-nullable: true
+      orders_count:
+        example: 4
+        type: integer
+      phone:
+        example: "01795088307"
+        type: string
+        x-nullable: true
+      total_spent:
+        example: 7490
+        type: number
+    type: object
+  customer.CustomerDetail:
+    properties:
+      address:
+        $ref: '#/definitions/customer.Address'
+      customer_id:
+        example: 1471
+        type: integer
+      email:
+        example: customer@example.com
+        type: string
+        x-nullable: true
+      first_name:
+        example: Mariyam
+        type: string
+        x-nullable: true
+      last_name:
+        example: Akther
+        type: string
+        x-nullable: true
+      orders_count:
+        example: 4
+        type: integer
+      phone:
+        example: "01795088307"
+        type: string
+        x-nullable: true
+      registered_at:
+        example: "2021-04-07T19:47:51.000Z"
+        format: date-time
+        type: string
+        x-nullable: true
+      total_spent:
+        example: 7490
+        type: number
+    type: object
+  customer.CustomerListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/customer.Customer'
+        type: array
+      limit:
+        example: 50
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 25
+        type: integer
+    type: object
+  customer.DetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/customer.CustomerDetail'
+      success:
+        example: true
+        type: boolean
+    type: object
+  customer.Profile:
+    properties:
+      address:
+        $ref: '#/definitions/customer.Address'
+      customer_id:
+        example: 12811
+        type: integer
+      email:
+        example: customer@example.com
+        type: string
+        x-nullable: true
+      first_name:
+        example: farhana
+        type: string
+        x-nullable: true
+      last_active_at:
+        example: "2022-05-11T10:00:00.000Z"
+        format: date-time
+        type: string
+        x-nullable: true
+      last_name:
+        example: faria
+        type: string
+        x-nullable: true
+      phone:
+        example: "01795088307"
+        type: string
+        x-nullable: true
+      registered_at:
+        example: "2022-02-27T14:10:53.000Z"
+        format: date-time
+        type: string
+        x-nullable: true
+      user_id:
+        example: 19897
+        type: integer
+        x-nullable: true
+    type: object
+  customer.ProfileListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/customer.Profile'
+        type: array
+      limit:
+        example: 50
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      success:
+        example: true
+        type: boolean
+      total:
+        example: 12578
+        type: integer
+    type: object
+  httpx.ErrorBody:
+    properties:
+      error:
+        type: string
+        x-nullable: true
+      message:
+        example: Customer not found.
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  main.HealthResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+      timestamp:
+        example: "2026-11-16T18:29:15.097Z"
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact: {}
+  description: |-
+    Reads customer data from the local MySQL database imported from the WordPress/WooCommerce SQL dump. It does not call the live website.
+
+    The dump's tables use the `wp5u_` prefix, including `wp5u_wc_customer_lookup`, `wp5u_wc_order_stats` and `wp5u_usermeta`.
+  title: Sacrop Customer API
+  version: "1.0"
+paths:
+  /api/customers:
+    get:
+      description: Returns WooCommerce customers with their completed/processing order
+        count and total spend, de-duplicated by email address in SQL so that paging
+        never repeats or skips a customer. `total` is the number of unique customers
+        in the database, not just in this page. Use `limit=all` to fetch every customer
+        in one response.
+      parameters:
+      - default: "50"
+        description: Rows per response, or `all` for every customer
+        in: query
+        name: limit
+        type: string
+      - default: 0
+        description: Rows to skip
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/customer.CustomerListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: List customers with order totals
+      tags:
+      - customers
+  /api/customers/{id}:
+    get:
+      description: Returns a single customer by WooCommerce customer ID, including
+        an order summary and the registration timestamp.
+      parameters:
+      - description: WooCommerce customer ID
+        example: 1471
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/customer.DetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: Get one customer
+      tags:
+      - customers
+  /api/customers/profiles:
+    get:
+      description: Returns customer profile data without order information, one row
+        per row of wp5u_wc_customer_lookup (so the same email can appear more than
+        once). `total` is the full row count of that table. Use `limit=all` to fetch
+        every row in one response.
+      parameters:
+      - default: "50"
+        description: Rows per response, or `all` for every row
+        in: query
+        name: limit
+        type: string
+      - default: 0
+        description: Rows to skip
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/customer.ProfileListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/httpx.ErrorBody'
+      summary: List customer profiles
+      tags:
+      - customers
+  /health:
+    get:
+      description: Confirms the HTTP server is responding. It does not independently
+        verify the database after startup.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.HealthResponse'
+      summary: Health check
+      tags:
+      - system
+produces:
+- application/json
+schemes:
+- http
+- https
+swagger: "2.0"
+tags:
+- description: Customer records from the WooCommerce analytics tables
+  name: customers
+- description: Service health
+  name: system

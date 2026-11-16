@@ -1,0 +1,452 @@
+{
+    "produces": [
+        "application/json"
+    ],
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Reads customer data from the local MySQL database imported from the WordPress/WooCommerce SQL dump. It does not call the live website.\n\nThe dump's tables use the `wp5u_` prefix, including `wp5u_wc_customer_lookup`, `wp5u_wc_order_stats` and `wp5u_usermeta`.",
+        "title": "Sacrop Customer API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:3000",
+    "basePath": "/",
+    "paths": {
+        "/api/customers": {
+            "get": {
+                "description": "Returns WooCommerce customers with their completed/processing order count and total spend, de-duplicated by email address in SQL so that paging never repeats or skips a customer. `total` is the number of unique customers in the database, not just in this page. Use `limit=all` to fetch every customer in one response.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "customers"
+                ],
+                "summary": "List customers with order totals",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "50",
+                        "description": "Rows per response, or `all` for every customer",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Rows to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/customer.CustomerListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.ErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/customers/profiles": {
+            "get": {
+                "description": "Returns customer profile data without order information, one row per row of wp5u_wc_customer_lookup (so the same email can appear more than once). `total` is the full row count of that table. Use `limit=all` to fetch every row in one response.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "customers"
+                ],
+                "summary": "List customer profiles",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "50",
+                        "description": "Rows per response, or `all` for every row",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Rows to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/customer.ProfileListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.ErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/customers/{id}": {
+            "get": {
+                "description": "Returns a single customer by WooCommerce customer ID, including an order summary and the registration timestamp.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "customers"
+                ],
+                "summary": "Get one customer",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "example": 1471,
+                        "description": "WooCommerce customer ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/customer.DetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.ErrorBody"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.ErrorBody"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/httpx.ErrorBody"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Confirms the HTTP server is responding. It does not independently verify the database after startup.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.HealthResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "customer.Address": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Dhaka"
+                },
+                "country": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "BD"
+                },
+                "line1": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "badda link road"
+                },
+                "line2": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Ja-128"
+                },
+                "postcode": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "1212"
+                },
+                "state": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "BD-13"
+                }
+            }
+        },
+        "customer.Customer": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "$ref": "#/definitions/customer.Address"
+                },
+                "customer_id": {
+                    "type": "integer",
+                    "example": 1471
+                },
+                "email": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "customer@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Mariyam"
+                },
+                "last_name": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Akther"
+                },
+                "orders_count": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "phone": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "01795088307"
+                },
+                "total_spent": {
+                    "type": "number",
+                    "example": 7490
+                }
+            }
+        },
+        "customer.CustomerDetail": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "$ref": "#/definitions/customer.Address"
+                },
+                "customer_id": {
+                    "type": "integer",
+                    "example": 1471
+                },
+                "email": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "customer@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Mariyam"
+                },
+                "last_name": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Akther"
+                },
+                "orders_count": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "phone": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "01795088307"
+                },
+                "registered_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true,
+                    "example": "2021-04-07T19:47:51.000Z"
+                },
+                "total_spent": {
+                    "type": "number",
+                    "example": 7490
+                }
+            }
+        },
+        "customer.CustomerListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/customer.Customer"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 25
+                }
+            }
+        },
+        "customer.DetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/customer.CustomerDetail"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "customer.Profile": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "$ref": "#/definitions/customer.Address"
+                },
+                "customer_id": {
+                    "type": "integer",
+                    "example": 12811
+                },
+                "email": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "customer@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "farhana"
+                },
+                "last_active_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true,
+                    "example": "2022-05-11T10:00:00.000Z"
+                },
+                "last_name": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "faria"
+                },
+                "phone": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "01795088307"
+                },
+                "registered_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true,
+                    "example": "2022-02-27T14:10:53.000Z"
+                },
+                "user_id": {
+                    "type": "integer",
+                    "x-nullable": true,
+                    "example": 19897
+                }
+            }
+        },
+        "customer.ProfileListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/customer.Profile"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 12578
+                }
+            }
+        },
+        "httpx.ErrorBody": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Customer not found."
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "main.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2026-11-16T18:29:15.097Z"
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "description": "Customer records from the WooCommerce analytics tables",
+            "name": "customers"
+        },
+        {
+            "description": "Service health",
+            "name": "system"
+        }
+    ]
+}
